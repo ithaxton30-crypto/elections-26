@@ -1,0 +1,86 @@
+---
+title: "North Carolina 2026 US Senate Results"
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+County-level vote margins from the November 3, 2026 North Carolina general election (Roy Cooper vs. Michael Whatley), using official precinct results from the [NC State Board of Elections](https://www.ncsbe.gov/results-data/election-results/historical-election-results-data).
+
+```{r}
+library(tidyverse)
+library(sf)
+
+# Sum US Senate votes by county and party
+senate_county <- read_tsv("data/results_pct_20261103.txt") |>
+  filter(`Contest Name` == "US SENATE") |>
+  summarize(votes = sum(`Total Votes`), .by = c(County, `Choice Party`)) |>
+  pivot_wider(names_from = `Choice Party`, values_from = votes, values_fill = 0) |>
+  mutate(
+    total = DEM + REP + LIB + GRE,
+    dem_margin = (DEM - REP) / total * 100
+  )
+
+# Load built-in NC county boundaries and join election results
+nc_map <- st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE) |>
+  mutate(County = toupper(NAME)) |>
+  left_join(senate_county, by = "County")
+
+# Plot county vote margins (blue = Cooper/DEM lead, red = Whatley/REP lead)
+ggplot(nc_map, aes(fill = dem_margin)) +
+  geom_sf(color = "gray30", linewidth = 0.25) +
+  scale_fill_gradient2(
+    low = "#b2182b",
+    mid = "#f7f7f7",
+    high = "#2166ac",
+    midpoint = 0,
+    limits = c(-50, 50),
+    oob = scales::squish,
+    breaks = c(-40, -20, 0, 20, 40),
+    labels = c("R+40%", "R+20%", "Even", "D+20%", "D+40%"),
+    name = "Margin"
+  ) +
+  labs(
+    title = "2026 NC U.S. Senate Election Margin by County",
+    subtitle = "Roy Cooper (D) vs. Michael Whatley (R)",
+    caption = "Source: NC State Board of Elections (Nov. 3, 2026)"
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(2, "cm")
+  )
+```
+
+## Georgia
+
+```{r}
+# Load Georgia county boundaries
+ga_map <- st_as_sf(maps::map("county", "georgia", plot = FALSE, fill = TRUE))
+
+# Plot Georgia county map
+ggplot(ga_map) +
+  geom_sf(fill = "gray95", color = "gray40", linewidth = 0.2) +
+  labs(
+    title = "Georgia Counties",
+    caption = "Source: maps package"
+  ) +
+  theme_void()
+```
+
+## Florida
+
+```{r}
+# Load Florida county boundaries
+fl_map <- st_as_sf(maps::map("county", "florida", plot = FALSE, fill = TRUE))
+
+# Plot Florida county map
+ggplot(fl_map) +
+  geom_sf(fill = "gray95", color = "gray40", linewidth = 0.2) +
+  labs(
+    title = "Florida Counties",
+    caption = "Source: maps package"
+  ) +
+  theme_void()
+```
